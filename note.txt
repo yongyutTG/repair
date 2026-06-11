@@ -1,0 +1,7 @@
+
+
+1. ทำการติดตั้งก่อน
+http://localhost/repair/install
+
+2.login เข้าสู่ระบบ
+http://localhost/repair/

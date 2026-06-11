@@ -1,0 +1,30 @@
+<?php
+$root = __DIR__ . '/../';
+$exclude = [realpath($root . 'core/mysql_compat.php'), realpath($root . 'core/connect.core.php')];
+$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
+$filesChanged = 0;
+foreach ($it as $file) {
+    if (!$file->isFile()) continue;
+    if (pathinfo($file, PATHINFO_EXTENSION) !== 'php') continue;
+    $path = $file->getRealPath();
+    if (in_array($path, $exclude)) continue;
+    $contents = file_get_contents($path);
+    // skip files that do not contain mysql_query
+    if (strpos($contents, 'mysql_query(') === false) continue;
+    $orig = $contents;
+    // Replace mysql_query($q, $link) -> mysqli_query($link, $q)
+    $contents = preg_replace_callback('/mysql_query\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)/s', function($m){
+        return 'mysqli_query('.trim($m[2]).', '.trim($m[1]).')';
+    }, $contents);
+    // Replace mysql_query($q) -> mysqli_query($GLOBALS[\'DB_CONN\'], $q)
+    $contents = preg_replace('/mysql_query\s*\(\s*(?!mysqli_query)([^,\)]+)\s*\)/', 'mysqli_query($GLOBALS[\'DB_CONN\'], $1)', $contents);
+    if ($contents !== $orig) {
+        copy($path, $path . '.bak2');
+        file_put_contents($path, $contents);
+        echo "Patched mysql_query in: $path\n";
+        $filesChanged++;
+    }
+}
+
+echo "Done. Files changed: $filesChanged\n";
+?>
